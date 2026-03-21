@@ -65,17 +65,17 @@ Al conectar por primera vez a una base de datos PostgreSQL vacía, la aplicació
 **Credenciales iniciales:** `admin` / `admin123`
 
 **Supabase**
-- operaciones@volcangroup.io
-- Operaciones#2026
-- Database password: K3CZEBWIbhVNka2w
+* operaciones@volcangroup.io
+* Operaciones#2026
+* Database password: K3CZEBWIbhVNka2w
    
 **Github**
-- operaciones@volcangroup.io
-- Operaciones#2026
+* operaciones@volcangroup.io
+* Operaciones#2026
 
 **Render**
-- GuilloM
-- Guillo2026
+* operaciones@volcangroup.io
+* Operaciones#2026
 
 ---
 ## 🔄 Flujo de Trabajo en el Futuro (Mantenimiento)
@@ -97,3 +97,12 @@ Resumen de qué hacer en cada plataforma:
 *   **Acción:** Usa el **"Table Editor"**.
 *   **Resultado:** Ves la información real en tiempo real. No necesitas subir nada aquí; la app lo hace sola.
 
+---
+## Conexión base de datos Heidi
+* **Tipo de red** PostgreSQL (TCP/IP)
+* **Libreria**: libpq-10.dll
+* **Host**: aws-0-us-west-2.pooler.supabase.com
+* **Usuario**: postgres.nbfohvipfcudvaxmpzpx
+* **Pass**: K3CZEBWIbhVNka2w
+* **Puerto** 5432
+* **Base de datos**: postgres
