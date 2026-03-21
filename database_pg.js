@@ -101,9 +101,16 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (requester_id) REFERENCES users(id),
-        FOREIGN KEY (proposed_bin_id) REFERENCES bins(id)
+        FOREIGN KEY (proposed_bin_id) REFERENCES bins(id) ON DELETE SET NULL
       )
     `);
+
+    // Migration: Update existing FK constraint to use ON DELETE SET NULL
+    await client.query(`
+      ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_proposed_bin_id_fkey;
+      ALTER TABLE requests ADD CONSTRAINT requests_proposed_bin_id_fkey 
+      FOREIGN KEY (proposed_bin_id) REFERENCES bins(id) ON DELETE SET NULL;
+    `).catch(() => { /* skip if fails */ });
 
     // Audit Log
     await client.query(`

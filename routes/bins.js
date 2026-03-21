@@ -378,6 +378,8 @@ router.delete('/all', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const count = (await queryOne('SELECT COUNT(*) as c FROM bins')).c;
         if (count > 0) {
+            // Nullify references in requests to avoid FK constraint error
+            await runQuery('UPDATE requests SET proposed_bin_id = NULL');
             await runQuery('DELETE FROM bins');
             await logAudit(req.user.id, req.user.username, 'DELETE_ALL', 'bins', null, null, null, null, `Eliminados ${count} BINes masivamente`);
         }
