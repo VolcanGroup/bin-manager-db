@@ -11,65 +11,55 @@ Una aplicación web para la gestión, segmentación y auditoría de **BINs (Bank
 - **Administración de Solicitudes**: Flujo de aprobación para altas de BINs (Pendiente, Aprobado, Rechazado).
 - **Auditoría**: Registro de acciones realizadas por los usuarios en el sistema.
 - **Catálogos**: Gestión de países asociados a los BINs.
-- **Importación/Exportación**: Capacidad de manejar archivos de datos.
-- **Manual de Usuario**: Guía completa de uso en [Manual_Usuario_BINes.md](Manual_Usuario_BINes.md).
+- **Modos de Operación**: Soporta **SQLite** (local) y **PostgreSQL** (nube) de forma transparente.
 
 ## Estructura del Proyecto
 
 - `server.js`: Punto de entrada de la aplicación Node.js / Express.
-- `database.js`: Configuración y consultas a la base de datos (SQLite usando `sql.js`, respaldado por archivo en el disco).
-- `routes/`: Controladores de la API REST (`auth`, `bins`, `users`, `requests`, `audit`, `countries`).
-- `middleware/`: Middlewares de Express (ej. autenticación con JWT, carga de archivos).
-- `public/`: Frontend de la aplicación web (SPA - HTML, CSS, JavaScript).
-- `data/`: Directorio donde se almacena la información persistente, incluyendo el archivo SQLite (`database.sqlite`).
+- `db_connector.js`: Selector dinámico de base de datos (SQLite vs PostgreSQL).
+- `database.js`: Implementación para SQLite (Local).
+- `database_pg.js`: Implementación para PostgreSQL (Nube/Supabase/Render).
+- `routes/`: Controladores de la API REST (ahora totalmente asíncronos para compatibilidad con la nube).
+- `middleware/`: Autenticación JWT y validación de roles.
+- `public/`: Frontend de la aplicación web (HTML, CSS y Vanilla JS).
 
 ## Requisitos Previos
 
-- [Node.js](https://nodejs.org/) (v14 o superior recomendado)
-- npm (Node Package Manager)
+- [Node.js](https://nodejs.org/) (v14 o superior)
+- Una cuenta en [Supabase](https://supabase.com/) (para PostgreSQL) si se desea desplegar en la nube.
+- Una cuenta en [Render](https://render.com/) para hosting.
 
-## Instalación y Configuración
+## Instalación y Configuración Local
 
-1. **Ubicarse en la carpeta del proyecto**:
-   ```bash
-   cd C:\Users\guillermo.martinez\.gemini\antigravity\scratch\bin-manager
-   ```
-
-2. **Instalar las dependencias** (si no lo has hecho ya):
+1. **Instalar dependencias**:
    ```bash
    npm install
    ```
-
-3. **Ejecutar el servidor localmente**:
+2. **Ejecutar servidor**:
    ```bash
    npm start
-   # Para desarrollo (si utilizas nodemon u otras herramientas, aunque actualmente start y dev hacen lo mismo):
-   npm run dev
    ```
+   La aplicación usará **SQLite** automáticamente en `data/database.sqlite`.
 
-4. **Acceder a la aplicación**:
-   Abre un navegador en [http://localhost:3000](http://localhost:3000).
+## Despliegue en la Nube (Render + Supabase)
 
-   **Credenciales de acceso inicial:**
-   - **Usuario:** `admin`
-   - **Contraseña:** `admin123`
+La aplicación detecta automáticamente si debe usar PostgreSQL mediante la variable de entorno `DATABASE_URL`.
 
-## Tecnologías Principales
+### 1. Variables de Entorno Requeridas
+En Render.com, configura las siguientes variables:
+- `DATABASE_URL`: Tu cadena de conexión de Supabase (ej: `postgres://user:pass@host:5432/db`).
+- `JWT_SECRET`: Una cadena aleatoria para firmar los tokens de sesión.
+- `PORT`: Generalmente `3000` o asignado por Render.
 
-- **Backend**: Node.js, Express.js
-- **Base de Datos**: SQLite (en memoria y guardado en archivo vía `sql.js`)
-- **Seguridad**: JSON Web Tokens (JWT) para sesiones, `bcryptjs` para contraseñas.
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript (Single Page Application orientada por eventos).
-- **Otros**: `multer` para procesar formularios multipart y carga de archivos, `xlsx` para leer hojas de cálculo de importación de datos.
+### 2. Base de Datos
+Al conectar por primera vez a una base de datos PostgreSQL vacía, la aplicación ejecutará automáticamente el script de inicialización para crear las tablas y el usuario administrador inicial.
 
-## Tests y Scripts de Utilidad
+## Tecnologías
 
-Existen varios scripts en la raíz del proyecto para validar la BD y realizar pruebas aisladas de funciones:
-- `test_db_state.js`: Revisa y muestra el estado actual de las tablas de la BD.
-- `test_unsegment.js`: Prueba la función encargada de agrupar/desegmentar rangos de BINes.
-- `test_upload.js`: Simula la funcionalidad de subir archivos de carga de BINes.
+- **Backend**: Node.js, Express.js.
+- **Base de Datos**: SQLite (Local) / PostgreSQL (Producción).
+- **Frontend**: Vanilla JavaScript (SPA), CSS3.
+- **Seguridad**: JWT (sesiones), Bcrypt (contraseñas).
 
-**Ejecución de un script de prueba:**
-```bash
-node test_db_state.js
-```
+---
+**Credenciales iniciales:** `admin` / `admin123`
