@@ -74,8 +74,7 @@ Al conectar por primera vez a una base de datos PostgreSQL vacía, la aplicació
 * Operaciones#2026
 
 **Render**
-* operaciones@volcangroup.io
-* Operaciones#2026
+* Con la cuenta de Github
 
 ---
 ## 🔄 Flujo de Trabajo en el Futuro (Mantenimiento)
