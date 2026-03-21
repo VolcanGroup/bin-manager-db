@@ -153,6 +153,16 @@ async function initDatabase() {
       console.log('✓ Default countries seeded');
     }
 
+    // Seed Embossers from existing bins
+    const resEmbosser = await client.query('SELECT COUNT(*) as c FROM embossers');
+    if (parseInt(resEmbosser.rows[0].c) === 0) {
+      const distinctEmbossers = await client.query("SELECT DISTINCT embosser FROM bins WHERE embosser IS NOT NULL AND embosser != ''");
+      for (const row of distinctEmbossers.rows) {
+        await client.query('INSERT INTO embossers (name) VALUES ($1) ON CONFLICT DO NOTHING', [row.embosser]);
+      }
+      console.log(`✓ ${distinctEmbossers.rows.length} embossers seeded from bins table`);
+    }
+
   } finally {
     client.release();
   }

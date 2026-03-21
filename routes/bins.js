@@ -447,8 +447,16 @@ async function asyncProcessBulkBins(bins, user) {
 
             await runQuery(
                 `INSERT INTO bins (country, ica, ica_qmr, bin_number, bin_length, parent_bin, status, brand, product, segment, client, tokenization, keys, embosser, bin_type, balance_type, notes, assigned_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [b.country || null, b.ica || null, b.ica_qmr || null, cleanBin, binLen, parentBin, binStatus, b.brand || null, b.product || null, b.segment || null, isNoClient ? null : clientVal, b.tokenization || null, b.keys || null, isNoClient ? null : (b.embosser || null), b.bin_type || null, b.balance_type || null, b.notes || null, assignedDate]
+                [b.country || null, b.ica || null, b.ica_qmr || null, cleanBin, binLen, parentBin, binStatus,
+                b.brand || null, b.product || null, b.segment || null, isNoClient ? null : clientVal, b.tokenization || null, b.keys || null, isNoClient ? null : (b.embosser || null),
+                b.bin_type || null, b.balance_type || null, b.notes || null, assignedDate]
             );
+
+            // Register embosser in catalog if new
+            if (!isNoClient && b.embosser) {
+                await runQuery('INSERT INTO embossers (name) VALUES (?) ON CONFLICT DO NOTHING', [b.embosser.trim()]);
+            }
+
             inserted++;
         } catch (e) { skipped++; errors.push(`${b.bin_number}: ${e.message}`); }
     }
