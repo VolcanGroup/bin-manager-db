@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Portal de Administración de BINes - Control de asignación y disponibilidad">
+  <title>BIN Manager v2</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏦</text></svg>">
+</head>
+
+<body>
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ===== Login Page ===== -->
+  <div id="loginPage" class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="logo-icon">🏦</div>
+        <h2>BIN Manager</h2>
+        <p>Inicia sesión para acceder al portal</p>
+      </div>
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="loginUsername" class="form-label">Usuario</label>
+          <input title="login sername" type="text" id="loginUsername" placeholder="Ingresa tu usuario" autocomplete="username" required class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword" class="form-label">Contraseña</label>
+          <input title="login assword" type="password" id="loginPassword" placeholder="Ingresa tu contraseña" autocomplete="current-password" required class="form-input">
+        </div>
+        <div id="loginError" class="login-error"></div>
+        <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== App ===== -->
+  <div id="appPage" class="app-container hidden">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="logo-icon">🏦</div>
+          <div>
+            <h1>BIN Manager</h1>
+            <span class="subtitle">Portal de BINes v2</span>
+          </div>
+        </div>
+        <button id="toggleSidebar" class="sidebar-toggle" title="Contraer/Expandir menú">
+          <span class="toggle-icon">❮</span>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <div data-page="dashboard" id="navDashboard" class="nav-item active">
+          <span class="nav-icon">📊</span><span>Dashboard</span>
+        </div>
+        <div data-page="bins" id="navBins" class="nav-item">
+          <span class="nav-icon">💳</span><span class="nav-text">BINes</span>
+        </div>
+
+        <!-- Requester section -->
+        <div data-role="requester" class="nav-section-title inline-style-1">Solicitudes</div>
+        <div data-role="requester" data-page="request" id="navRequest" class="nav-item inline-style-1">
+          <span class="nav-icon">📝</span><span class="nav-text">Solicitar BIN</span>
+        </div>
+        <div data-role="requester" data-page="myRequests" id="navMyRequests" class="nav-item inline-style-1">
+          <span class="nav-icon">📋</span><span class="nav-text">Mis Solicitudes</span>
+        </div>
+
+        <!-- Admin section -->
+        <div data-role="admin" class="nav-section-title inline-style-1">Administración</div>
+        <div data-role="admin" data-page="approvals" id="navApprovals" class="nav-item inline-style-1">
+          <span class="nav-icon">✅</span><span class="nav-text">Autorizaciones</span>
+          <span id="pendingBadge" class="nav-badge inline-style-1">0</span>
+        </div>
+        <div data-role="admin" data-page="bulkImport" id="navBulk" class="nav-item inline-style-1">
+          <span class="nav-icon">📥</span><span class="nav-text">Carga Masiva</span>
+        </div>
+        <div data-role="admin" data-page="users" id="navUsers" class="nav-item inline-style-1">
+          <span class="nav-icon">👥</span><span class="nav-text">Usuarios</span>
+        </div>
+        <div data-role="admin" data-page="audit" id="navAudit" class="nav-item inline-style-1">
+          <span class="nav-icon">📜</span><span class="nav-text">Bitácora</span>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="theme-switch-container">
+          <button id="themeToggle" class="theme-toggle-btn" title="Cambiar Tema (Claro/Oscuro)">
+            <span class="theme-icon">🌙</span>
+            <span class="nav-text">Modo Oscuro</span>
+          </button>
+        </div>
+        <div class="user-info">
+          <div id="userAvatar" class="user-avatar">A</div>
+          <div class="user-details">
+            <div id="userName" class="user-name">Admin</div>
+            <div id="userRole" class="user-role">admin</div>
+          </div>
+          <button id="logoutBtn" title="Cerrar sesión" class="btn-logout">
+            <span class="nav-icon">🚪</span>
+            <span class="nav-text">Salir</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <button id="mobileToggle" aria-label="Menu">☰</button>
+
+      <!-- ===== Dashboard Page ===== -->
+      <div id="pageDashboard" class="page">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Dashboard</h2>
+            <p class="page-subtitle">Resumen general del inventario de BINes</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <!-- Section 1: Totales por longitud -->
+          <div class="dash-section-title">Inventario Total</div>
+          <div class="stats-grid inline-style-2">
+            <div class="stat-card flat inline-style-3">
+              <div id="statLen8" class="stat-value">-</div>
+              <div class="stat-label">BINes 8 dígitos</div>
+            </div>
+            <div class="stat-card flat inline-style-4">
+              <div id="statLen9" class="stat-value">-</div>
+              <div class="stat-label">BINes 9 dígitos</div>
+            </div>
+            <div class="stat-card flat inline-style-5">
+              <div id="statLen10" class="stat-value">-</div>
+              <div class="stat-label">BINes 10 dígitos</div>
+            </div>
+          </div>
+
+          <!-- Section 2: Disponibles restantes por longitud -->
+          <div class="dash-section-title inline-style-6">Disponibles por Longitud</div>
+          <div class="stats-grid inline-style-2">
+            <div class="stat-card flat inline-style-7">
+              <div id="statAvail8" class="stat-value">-</div>
+              <div class="stat-label">Disponibles 8 dígitos</div>
+            </div>
+            <div class="stat-card flat inline-style-7">
+              <div id="statAvail9" class="stat-value">-</div>
+              <div class="stat-label">Disponibles 9 dígitos</div>
+            </div>
+            <div class="stat-card flat inline-style-7">
+              <div id="statAvail10" class="stat-value">-</div>
+              <div class="stat-label">Disponibles 10 dígitos</div>
+            </div>
+          </div>
+
+          <!-- Section 3: Clientes con BIN asignado + Por país -->
+          <div class="inline-style-8">
+            <div>
+              <div class="dash-section-title">Clientes con BIN Asignado</div>
+              <div class="table-container inline-style-9">
+                <div class="table-scroll inline-style-10">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Cliente</th>
+                        <th>BINes</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashClientBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="dash-section-title">Asignados vs Disponibles por País</div>
+              <div class="table-container inline-style-9">
+                <div class="table-scroll inline-style-10">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>País</th>
+                        <th>8d</th>
+                        <th>9d</th>
+                        <th>10d</th>
+                        <th>Asignados</th>
+                        <th>Disponibles</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashCountryBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Actividad reciente -->
+          <div class="dash-section-title inline-style-6">Actividad Reciente</div>
+          <div class="table-container inline-style-9">
+            <div class="table-scroll inline-style-11">
+              <table>
+                <thead>
+                  <tr>
+                    <th>BIN</th>
+                    <th>Cliente</th>
+                    <th>Producto</th>
+                    <th>Segmento</th>
+                    <th>Tipo</th>
+                    <th>Dígitos</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="dashActivityBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BINs Page ===== -->
+      <div id="pageBins" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Gestión de BINes</h2>
+            <p class="page-subtitle">Administra y consulta todos los BINes</p>
+          </div>
+          <div class="page-actions">
+            <button id="exportBinsBtn" title="Exportar a TXT" class="btn btn-secondary btn-sm">📥 Exportar</button>
+            <button data-role="admin" id="segmentBinBtn" class="btn btn-secondary btn-sm inline-style-1">🔀
+              Segmentar BIN</button>
+            <button data-role="admin" id="deleteAllBinsBtn" class="btn btn-danger btn-sm inline-style-1">🗑️
+              Eliminar Todos</button>
+            <button data-role="admin" id="addBinBtn" class="btn btn-primary inline-style-1">➕ Nuevo BIN</button>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="filters-container inline-style-12">
+            <!-- Fila Superior: Búsqueda y Botones -->
+            <div class="filters-top-row inline-style-13">
+              <div class="search-box inline-style-14">
+                <span class="search-icon">🔍</span>
+                <input title="Buscar" type="text" id="searchInput" placeholder="Buscar por BIN, cliente, ICA, procesador...">
+              </div>
+              <label class="inline-style-15">
+                <input title="filter arent nly" type="checkbox" id="filterParentOnly"> Solo padres
+              </label>
+              <button id="clearFiltersBtn" title="Limpiar filtros" class="btn btn-ghost btn-sm inline-style-16">✕ Limpiar</button>
+            </div>
+
+            <!-- Fila Inferior: Selectores y Filtros Específicos -->
+            <div class="filters-grid inline-style-17">
+              <select id="filterStatus" title="iltro de  tatus" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="available">Disponible</option>
+                <option value="segmented">Segmentado</option>
+                <option value="assigned">Asignado</option>
+                <option value="pending">Por aprobar</option>
+                <option value="exhausted">Agotado</option>
+                <option value="on_hold">En Espera</option>
+              </select>
+              <select id="filterBrand" title="iltro de  rand" class="filter-select">
+                <option value="">Todas las marcas</option>
+                <option value="Visa">Visa</option>
+                <option value="Mastercard">Mastercard</option>
+              </select>
+              <select id="filterProduct" title="Filtrar por Producto" class="filter-select">
+                <option value="">Todos los productos</option>
+                <option value="Prepago">Prepago</option>
+                <option value="Débito">Débito</option>
+                <option value="Crédito">Crédito</option>
+              </select>
+              <select id="filterSegment" title="Filtrar por Segmento" disabled class="filter-select">
+                <option value="">Todos los segmentos</option>
+              </select>
+              <select id="filterProcessor" title="Filtrar por Tokenización" class="filter-select">
+                <option value="">Tokenización...</option>
+                <option value="COF">COF</option>
+                <option value="Billetera Apple">Billetera Apple</option>
+                <option value="Billetera Google">Billetera Google</option>
+                <option value="Billetera Ambas">Billetera Ambas</option>
+                <option value="No aplica">No aplica</option>
+              </select>
+              <select id="filterEmbosser" title="Filtrar por Embozador" class="filter-select">
+                <option value="">Embozador...</option>
+              </select>
+              <select id="filterBalanceType" title="iltro de  alance ype" class="filter-select">
+                <option value="">Tipo Saldos...</option>
+                <option value="Interno">Interno</option>
+                <option value="Externo">Externo</option>
+              </select>
+              <select id="filterBinType" title="iltro de  in ype" class="filter-select">
+                <option value="">Tipo de BIN</option>
+                <option value="Sponsor">Sponsor</option>
+                <option value="Miembro Principal">Miembro Principal</option>
+              </select>
+              <select id="filterLength" title="iltro de  ength" class="filter-select">
+                <option value="">Todos los dígitos</option>
+                <option value="8">8 dígitos</option>
+                <option value="9">9 dígitos</option>
+                <option value="10">10 dígitos</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container">
+            <div class="table-info"><span id="binsCount">0 BINes</span></div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-sort="country">País</th>
+                    <th data-sort="ica">ICA</th>
+                    <th>ICA QMR</th>
+                    <th data-sort="bin_number">BIN</th>
+                    <th>Dígitos</th>
+                    <th data-sort="brand">Marca</th>
+                    <th data-sort="product">Producto</th>
+                    <th data-sort="segment">Segmento</th>
+                    <th data-sort="status">Estado</th>
+                    <th data-sort="client">Cliente</th>
+                    <th>Tokenización</th>
+                    <th data-sort="bin_type">Tipo de BIN</th>
+                    <th>Embozador</th>
+                    <th>Tipo de Saldos</th>
+                    <th data-role="admin" class="inline-style-1">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="binsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Request BIN Page (Requester) ===== -->
+      <div id="pageRequest" data-role="requester" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Solicitar BIN</h2>
+            <p class="page-subtitle">Complete los datos para solicitar un BIN</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="form-card">
+            <form id="requestForm" class="form-grid">
+              <div class="form-group">
+                <label for="reqCountry" class="form-label">País *</label>
+                <div class="inline-style-18">
+                  <select id="reqCountry" title="req ountry" required class="form-select inline-style-19">
+                    <option value="">Seleccionar...</option>
+                    <!-- Populated dynamically from /api/countries -->
+                  </select>
+                  <button type="button" id="reqAddCountryBtn" data-role="admin" title="Agregar país" class="btn btn-secondary btn-sm inline-style-1">＋</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reqDigits" class="form-label">Dígitos *</label>
+                <select id="reqDigits" title="req igits" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="8" id="reqDigits8">8 dígitos</option>
+                  <option value="9">9 dígitos</option>
+                  <option value="10">10 dígitos</option>
+                </select>
+                <div id="reqDigitsMsg" class="inline-style-20"></div>
+              </div>
+              <div class="form-group">
+                <label for="reqBrand" class="form-label">Marca *</label>
+                <select id="reqBrand" title="req rand" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="Visa">Visa</option>
+                  <option value="Mastercard">Mastercard</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqProduct" class="form-label">Producto *</label>
+                <select id="reqProduct" title="Producto" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="Prepago">Prepago</option>
+                  <option value="Débito">Débito</option>
+                  <option value="Crédito">Crédito</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqSegment" class="form-label">Segmento *</label>
+                <select id="reqSegment" title="Segmento" required disabled class="form-select">
+                  <option value="">Primero seleccione Producto...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqBinType" class="form-label">Tipo de BIN *</label>
+                <select id="reqBinType" title="req in ype" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="Sponsor">Sponsor</option>
+                  <option value="Miembro Principal">Miembro Principal</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqClient" class="form-label">Cliente *</label>
+                <input title="req lient" type="text" id="reqClient" placeholder="Nombre del cliente" required class="form-input">
+              </div>
+              <div class="form-group">
+                <label for="reqTokenization" class="form-label">Tokenización *</label>
+                <select id="reqTokenization" title="req okenization" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="COF">COF</option>
+                  <option value="Billetera Apple">Billetera Apple</option>
+                  <option value="Billetera Google">Billetera Google</option>
+                  <option value="Billetera Ambas">Billetera Ambas</option>
+                  <option value="No aplica">No aplica</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqKeys" class="form-label">Llaves *</label>
+                <select id="reqKeys" title="req eys" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="Interna">Interna</option>
+                  <option value="Externa">Externa</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reqEmbosser" class="form-label">Embozador *</label>
+                <div class="inline-style-21">
+                  <select id="reqEmbosser" title="req mbosser" required class="form-select inline-style-19">
+                    <option value="">Seleccionar...</option>
+                    <!-- Populated dynamically from /api/embossers -->
+                  </select>
+                  <button type="button" id="reqAddEmbosserBtn" data-role="admin" title="Agregar embozador" class="btn btn-secondary btn-sm inline-style-1">＋</button>
+                </div>
+                <div id="embosserMsg" class="inline-style-20"></div>
+              </div>
+              <div class="form-group">
+                <label for="reqBalanceType" class="form-label">Tipo de Saldos *</label>
+                <select id="reqBalanceType" title="req alance ype" required class="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="Interno">Interno</option>
+                  <option value="Externo">Externo</option>
+                </select>
+              </div>
+              <div class="form-group full-width inline-style-22">
+                <button type="button" id="clearRequestFormBtn" class="btn btn-ghost inline-style-23">✕
+                  Limpiar</button>
+                <button type="button" id="submitRequestBtn" class="btn btn-primary inline-style-23">📝 Enviar
+                  Solicitud</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== My Requests Page (Requester) ===== -->
+      <div id="pageMyRequests" data-role="requester" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Mis Solicitudes</h2>
+            <p class="page-subtitle">Estado de tus solicitudes de BIN</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Dígitos</th>
+                    <th>BIN Propuesto</th>
+                    <th>Marca</th>
+                    <th>Producto</th>
+                    <th>Segmento</th>
+                    <th>Estado</th>
+                    <th>Aprobado por</th>
+                  </tr>
+                </thead>
+                <tbody id="myRequestsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Approvals Page (Admin) ===== -->
+      <div id="pageApprovals" data-role="admin" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Autorizaciones</h2>
+            <p class="page-subtitle">Aprobar o rechazar solicitudes de BIN</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="filters-bar">
+            <select id="filterApprovalStatus" title="iltro de  pproval tatus" class="filter-select">
+              <option value="pending">Pendientes</option>
+              <option value="">Todas</option>
+              <option value="approved">Aprobadas</option>
+              <option value="rejected">Rechazadas</option>
+            </select>
+          </div>
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Solicitante</th>
+                    <th>Cliente</th>
+                    <th>Dígitos</th>
+                    <th>BIN Propuesto</th>
+                    <th>País</th>
+                    <th>Marca</th>
+                    <th>Producto</th>
+                    <th>Segmento</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="approvalsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Bulk Import Page (Admin) ===== -->
+      <div id="pageBulkImport" data-role="admin" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Carga Masiva</h2>
+            <p class="page-subtitle">Importar BINes desde archivo o datos</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="form-card">
+            <div class="inline-style-24">
+              <p class="inline-style-25">Pegue datos CSV o seleccione un
+                archivo Excel. Columnas esperadas:</p>
+              <code class="inline-style-26">country, ica, ica_qmr, bin_number, brand, product, segment, client, tokenization, keys, embosser, bin_type, balance_type</code>
+              <p class="inline-style-27">💡 <b>Estado</b>, <b>Dígitos</b> y <b>BIN Padre</b> se
+                calculan automáticamente: si tiene Cliente → Asignado, si no → Disponible. El BIN padre se toma de los
+                primeros 8 dígitos para BINes de 9-10 dígitos.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Archivo Excel/CSV</label>
+              <input title="bulk ile" type="file" id="bulkFile" accept=".xlsx,.xls,.csv,.txt" class="form-input inline-style-28">
+            </div>
+            <div class="form-group inline-style-29">
+              <label class="form-label">O pegue datos CSV</label>
+              <textarea id="bulkCsvData" rows="8" placeholder="country,ica,ica_qmr,bin_number,brand,product,segment,client,tokenization,keys,embosser,bin_type,balance_type&#10;Guatemala,12345,67890,52688601,Mastercard,Crédito,Standard,,,MDES,,Sponsor,Interno&#10;Guatemala,12345,67890,5268860100,Mastercard,Crédito,Gold,Mi Cliente,MDES,,,Sponsor,Externo" class="form-textarea"></textarea>
+            </div>
+            <div class="inline-style-30">
+              <button id="bulkImportBtn" class="btn btn-primary">📥 Importar</button>
+            </div>
+            <div id="bulkResult" class="inline-style-31"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Users Page (Admin) ===== -->
+      <div id="pageUsers" data-role="admin" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Gestión de Usuarios</h2>
+            <p class="page-subtitle">Administra los accesos al sistema</p>
+          </div>
+          <div class="page-actions">
+            <button id="addUserBtn" class="btn btn-primary">➕ Nuevo Usuario</button>
+          </div>
+        </div>
+        <div class="page-body">
+          <div id="usersGrid" class="users-grid"></div>
+        </div>
+      </div>
+
+      <!-- ===== Audit Log Page (Admin) ===== -->
+      <div id="pageAudit" data-role="admin" class="page hidden inline-style-1">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Bitácora de Cambios</h2>
+            <p class="page-subtitle">Historial completo de acciones</p>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="filters-bar">
+            <select id="filterAuditAction" title="iltro de  udit ction" class="filter-select">
+              <option value="">Todas las acciones</option>
+              <option value="CREATE">Crear</option>
+              <option value="UPDATE">Editar</option>
+              <option value="DELETE">Eliminar</option>
+              <option value="ASSIGN">Asignar</option>
+              <option value="RELEASE">Liberar</option>
+              <option value="SEGMENT">Segmentar</option>
+              <option value="BULK_IMPORT">Carga Masiva</option>
+              <option value="REQUEST_CREATE">Solicitud</option>
+              <option value="REQUEST_APPROVE">Aprobación</option>
+              <option value="REQUEST_REJECT">Rechazo</option>
+            </select>
+            <input title="filter udit rom" type="date" id="filterAuditFrom" class="form-input inline-style-32">
+            <input title="filter udit o" type="date" id="filterAuditTo" class="form-input inline-style-32">
+            <button id="filterAuditBtn" class="btn btn-secondary btn-sm">🔍 Filtrar</button>
+          </div>
+          <div class="table-container">
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Tabla</th>
+                    <th>Campo</th>
+                    <th>Valor Anterior</th>
+                    <th>Valor Nuevo</th>
+                    <th>Detalles</th>
+                  </tr>
+                </thead>
+                <tbody id="auditBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+      <div id="binModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="binModalTitle" class="modal-title">Nuevo BIN</h3>
+        <button onclick="closeModal('binModal')" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="binForm" class="form-grid">
+          <input title="bin d" type="hidden" id="binId">
+          <div class="form-group"><label for="binCountry" class="form-label">País</label>
+            <div class="inline-style-18">
+              <select id="binCountry" title="bin ountry" class="form-select inline-style-19">
+                <option value="">Seleccionar...</option>
+                <!-- Populated dynamically -->
+              </select>
+              <button type="button" id="addCountryBtn" title="Agregar país" class="btn btn-secondary btn-sm">＋</button>
+            </div>
+          </div>
+          <div class="form-group"><label for="binIca" class="form-label">ICA</label><input title="bin ca" type="text" id="binIca" placeholder="Ej: 12345" class="form-input"></div>
+          <div class="form-group"><label for="binIcaQmr" class="form-label">ICA QMR</label><input title="bin ca mr" type="text" id="binIcaQmr" placeholder="Ej: 67890" class="form-input"></div>
+          <div class="form-group"><label for="binNumber" class="form-label">BIN * (8 dígitos)</label><input title="bin umber" type="text" id="binNumber" placeholder="Ej: 52688601" required maxlength="10" pattern="[0-9]{6,10}" class="form-input"></div>
+          <div class="form-group"><label for="binBrand" class="form-label">Marca</label><select id="binBrand" title="bin rand" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="Visa">Visa</option>
+              <option value="Mastercard">Mastercard</option>
+            </select></div>
+          <div class="form-group"><label for="binProduct" class="form-label">Producto</label><select id="binProduct" title="bin roduct" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="Prepago">Prepago</option>
+              <option value="Débito">Débito</option>
+              <option value="Crédito">Crédito</option>
+            </select></div>
+          <div class="form-group"><label for="binClient" class="form-label">Cliente</label><input title="bin lient" type="text" id="binClient" placeholder="Nombre del cliente" class="form-input"></div>
+          <div class="form-group"><label for="binTokenization" class="form-label">Tokenización</label><select id="binTokenization" title="bin okenization" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="COF">COF</option>
+              <option value="Billetera Apple">Billetera Apple</option>
+              <option value="Billetera Google">Billetera Google</option>
+              <option value="Billetera Ambas">Billetera Ambas</option>
+              <option value="No aplica">No aplica</option>
+            </select></div>
+          <div class="form-group"><label for="binKeys" class="form-label">Llaves</label><select id="binKeys" title="bin eys" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="Interna">Interna</option>
+              <option value="Externa">Externa</option>
+            </select></div>
+          <div class="form-group">
+            <label for="binEmbosser" class="form-label">Embozador</label>
+            <div class="inline-style-18">
+              <select id="binEmbosser" title="bin mbosser" class="form-select inline-style-19">
+                <option value="">Seleccionar...</option>
+                <!-- Populated dynamically -->
+              </select>
+              <button type="button" id="addEmbosserBtn" title="Agregar embozador" class="btn btn-secondary btn-sm">＋</button>
+            </div>
+          </div>
+          <div class="form-group"><label for="binType" class="form-label">Tipo de BIN</label><select id="binType" title="bin ype" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="Sponsor">Sponsor</option>
+              <option value="Miembro Principal">Miembro Principal</option>
+            </select></div>
+          <div class="form-group"><label for="binBalanceType" class="form-label">Tipo de Saldos</label><select id="binBalanceType" title="bin alance ype" class="form-select">
+              <option value="">Seleccionar...</option>
+              <option value="Interno">Interno</option>
+              <option value="Externo">Externo</option>
+            </select></div>
+          <div class="form-group"><label for="binStatus" class="form-label">Estado</label><select id="binStatus" title="bin tatus" class="form-select">
+              <option value="available">Disponible</option>
+              <option value="assigned">Asignado</option>
+              <option value="on_hold">En Espera</option>
+            </select></div>
+          <div class="form-group full-width"><label for="binNotes" class="form-label">Notas</label><textarea id="binNotes" placeholder="Notas adicionales..." class="form-textarea"></textarea></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('binModal')" class="btn btn-secondary">Cancelar</button>
+        <button id="binSaveBtn" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Segment Modal ===== -->
+  <div id="segmentModal" class="modal-overlay">
+    <div class="modal inline-style-33">
+      <div class="modal-header">
+        <h3 class="modal-title">Segmentar BIN</h3>
+        <button onclick="closeModal('segmentModal')" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">BIN Padre (8 dígitos)</label>
+          <input title="BIN Padre" type="text" id="segParentBin" placeholder="Ej: 52688601" maxlength="9" class="form-input">
+        </div>
+        <div class="form-group inline-style-29">
+          <label class="form-label">Tipo de Segmento</label>
+          <select id="segTargetLength" title="Tipo de Segmentación" class="form-select">
+            <option value="10">10 dígitos (100 segmentos)</option>
+            <option value="9">9 dígitos (10 segmentos)</option>
+          </select>
+        </div>
+        <p class="inline-style-34">El BIN padre debe existir y estar en estado
+          Disponible.</p>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('segmentModal')" class="btn btn-secondary">Cancelar</button>
+        <button id="segCreateBtn" class="btn btn-primary">🔀 Crear Segmentos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Segments View Modal ===== -->
+  <div id="segmentsModal" class="modal-overlay">
+    <div class="modal inline-style-35">
+      <div class="modal-header">
+        <h3 id="segmentsTitle" class="modal-title">Segmentos del BIN</h3>
+        <button onclick="closeModal('segmentsModal')" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>BIN</th>
+                <th>Estado</th>
+                <th>Cliente</th>
+                <th>Tokenización</th>
+                <th>Producto</th>
+              </tr>
+            </thead>
+            <tbody id="segmentsBody"></tbody>
+          </table>
+        </div>
+        <div id="segmentsEmpty" class="empty-state hidden">
+          <div class="icon">📋</div>
+          <h3>Sin segmentos</h3>
+          <p>Este BIN no tiene segmentos registrados.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('segmentsModal')" class="btn btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== User Modal ===== -->
+  <div id="userModal" class="modal-overlay">
+    <div class="modal inline-style-36">
+      <div class="modal-header">
+        <h3 id="userModalTitle" class="modal-title">Nuevo Usuario</h3>
+        <button onclick="closeModal('userModal')" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="userForm" class="form-grid inline-style-37">
+          <input title="user d" type="hidden" id="userId">
+          <div class="form-group"><label for="userUsername" class="form-label">Usuario *</label><input title="user sername" type="text" id="userUsername" placeholder="Nombre de usuario" required class="form-input"></div>
+          <div class="form-group"><label for="userFullName" class="form-label">Nombre Completo</label><input title="user ull ame" type="text" id="userFullName" placeholder="Nombre completo" class="form-input"></div>
+          <div class="form-group"><label for="userPassword" class="form-label">Contraseña *</label><input title="user assword" type="password" id="userPassword" placeholder="Mínimo 6 caracteres" required minlength="6" class="form-input"></div>
+          <div class="form-group">
+            <label for="userRoleSelect" class="form-label">Rol</label>
+            <select id="userRoleSelect" title="Rol del Usuario" class="form-select">
+              <option value="viewer">Viewer (solo lectura)</option>
+              <option value="requester">Solicitante</option>
+              <option value="admin">Admin (lectura y escritura)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('userModal')" class="btn btn-secondary">Cancelar</button>
+        <button id="userSaveBtn" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Confirm Modal ===== -->
+  <div id="confirmModal" class="modal-overlay">
+    <div class="modal inline-style-38">
+      <div class="modal-header">
+        <h3 id="confirmTitle" class="modal-title">Confirmar</h3>
+        <button onclick="closeModal('confirmModal')" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="confirmMessage" class="confirm-message"></div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('confirmModal')" class="btn btn-secondary">Cancelar</button>
+        <button id="confirmBtn" class="btn btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
