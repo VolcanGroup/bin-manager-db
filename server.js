@@ -2,9 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-// Dynamically choose database module based on environment
-const dbModule = process.env.DATABASE_URL ? './database_pg' : './database';
-const { initDatabase } = require(dbModule);
+// Unified database connector
+const { initDatabase } = require('./db_connector');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

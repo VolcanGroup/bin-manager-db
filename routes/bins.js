@@ -1,7 +1,7 @@
 const express = require('express');
 const XLSX = require('xlsx');
 const multer = require('multer');
-const { queryAll, queryOne, runQuery, logAudit } = require('../database');
+const { queryAll, queryOne, runQuery, logAudit } = require('../db_connector');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
