@@ -5,7 +5,7 @@ const { authenticateToken, requireAdmin, requireRequester } = require('../middle
 const router = express.Router();
 
 // ========== GET /api/requests — List requests ==========
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
         let query = 'SELECT * FROM requests WHERE 1=1';
         const params = [];
@@ -22,7 +22,7 @@ router.get('/', authenticateToken, (req, res) => {
         }
 
         query += ' ORDER BY created_at DESC';
-        const requests = queryAll(query, params);
+        const requests = await queryAll(query, params);
         res.json(requests);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -30,7 +30,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // ========== POST /api/requests — Create BIN request ==========
-router.post('/', authenticateToken, requireRequester, (req, res) => {
+router.post('/', authenticateToken, requireRequester, async (req, res) => {
     try {
         const { country, ica, ica_qmr, digits, brand, product, segment, client, tokenization, keys, embosser, bin_type, balance_type, notes } = req.body;
 
@@ -81,14 +81,13 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
             if (segment) { query += ' AND segment = ?'; params.push(segment); }
             query += ' ORDER BY bin_number ASC LIMIT 1';
 
-            const bin = queryOne(query, params);
+            const bin = await queryOne(query, params);
             if (!bin) return res.status(404).json({ error: 'No hay BINes de 8 dígitos disponibles con los filtros indicados' });
 
             proposedBin = bin.bin_number;
             proposedBinId = bin.id;
         } else {
             // Try to find an existing available segment of the requested length
-            // EXCLUDE segments from parent BINs that are already bound to a DIFFERENT embosser.
             let query = `SELECT s.* FROM bins s JOIN bins p ON s.parent_bin = p.bin_number
         WHERE s.bin_length = ? AND s.status = 'available' AND s.parent_bin IS NOT NULL`;
             const params = [dLen];
@@ -110,7 +109,7 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
 
             query += ' ORDER BY s.bin_number ASC LIMIT 1';
 
-            let seg = queryOne(query, params);
+            let seg = await queryOne(query, params);
 
             // If no segments exist, auto-segment an available 8-digit parent BIN
             if (!seg) {
@@ -122,7 +121,7 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
                 if (segment) { parentQuery += ' AND segment = ?'; parentParams.push(segment); }
                 parentQuery += ' ORDER BY bin_number ASC LIMIT 1';
 
-                const parentBin = queryOne(parentQuery, parentParams);
+                const parentBin = await queryOne(parentQuery, parentParams);
                 if (!parentBin) {
                     return res.status(404).json({ error: `No hay BINes disponibles para segmentar a ${dLen} dígitos con los filtros indicados` });
                 }
@@ -138,9 +137,9 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
                 for (let i = 0; i < segCount; i++) {
                     const suffix = segLen === 10 ? String(i).padStart(2, '0') : String(i);
                     const segNumber = parentBin.bin_number + suffix;
-                    const exists = queryOne('SELECT id FROM bins WHERE bin_number = ?', [segNumber]);
+                    const exists = await queryOne('SELECT id FROM bins WHERE bin_number = ?', [segNumber]);
                     if (!exists) {
-                        runQuery(
+                        await runQuery(
                             `INSERT INTO bins (country, ica, ica_qmr, bin_number, bin_length, parent_bin, status, brand, product, segment, keys, embosser, bin_type)
                              VALUES (?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, ?, ?)`,
                             [parentBin.country, parentBin.ica, parentBin.ica_qmr, segNumber, segLen, parentBin.bin_number,
@@ -150,14 +149,14 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
                 }
 
                 // Update parent status to segmented + mark as first segmentation
-                runQuery("UPDATE bins SET status = 'segmented', first_segmentation = 1, updated_at = datetime('now', 'localtime') WHERE id = ?", [parentBin.id]);
+                await runQuery("UPDATE bins SET status = 'segmented', first_segmentation = 1, updated_at = datetime('now', 'localtime') WHERE id = ?", [parentBin.id]);
                 isFirstSegmentation = true;
 
-                logAudit(req.user.id, req.user.username, 'AUTO_SEGMENT', 'bins', parentBin.id, 'status', 'available', 'segmented',
+                await logAudit(req.user.id, req.user.username, 'AUTO_SEGMENT', 'bins', parentBin.id, 'status', 'available', 'segmented',
                     `Auto-segmentado ${parentBin.bin_number} a ${segCount} segmentos de ${segLen} dígitos por solicitud`);
 
                 // Now find the first available segment
-                seg = queryOne(
+                seg = await queryOne(
                     `SELECT * FROM bins WHERE parent_bin = ? AND bin_length = ? AND status = 'available' ORDER BY bin_number ASC LIMIT 1`,
                     [parentBin.bin_number, dLen]
                 );
@@ -166,9 +165,7 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
             if (!seg) return res.status(404).json({ error: `No hay segmentos de ${dLen} dígitos disponibles` });
 
             // ===== Business Rule: Enforce same embosser for segmented BINs =====
-            // Only check against segments actually in use (assigned or pending), not available segments
-            // that inherited the embosser field from the parent during auto-segmentation.
-            const existingEmbosser = queryOne(
+            const existingEmbosser = await queryOne(
                 `SELECT embosser FROM bins WHERE parent_bin = ? AND embosser IS NOT NULL AND embosser != '' AND status IN ('assigned', 'pending') LIMIT 1`,
                 [seg.parent_bin]
             );
@@ -183,25 +180,25 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
             proposedBinId = seg.id;
         }
 
-        // Mark the BIN as pending — include tokenization on the BIN record
-        runQuery("UPDATE bins SET status = 'pending', client = ?, tokenization = ?, embosser = ?, balance_type = ?, requested_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
+        // Mark the BIN as pending
+        await runQuery("UPDATE bins SET status = 'pending', client = ?, tokenization = ?, embosser = ?, balance_type = ?, requested_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
             [client, tokenization || null, embosser || null, balance_type || null, req.user.username, proposedBinId]);
 
         // Recalculate parent if segment
-        const binRow = queryOne('SELECT parent_bin FROM bins WHERE id = ?', [proposedBinId]);
+        const binRow = await queryOne('SELECT parent_bin FROM bins WHERE id = ?', [proposedBinId]);
         if (binRow && binRow.parent_bin) {
-            const parent = queryOne('SELECT * FROM bins WHERE bin_number = ?', [binRow.parent_bin]);
+            const parent = await queryOne('SELECT * FROM bins WHERE bin_number = ?', [binRow.parent_bin]);
             if (parent) {
-                const segs = queryAll('SELECT status FROM bins WHERE parent_bin = ?', [binRow.parent_bin]);
+                const segs = await queryAll('SELECT status FROM bins WHERE parent_bin = ?', [binRow.parent_bin]);
                 const assignedCount = segs.filter(s => s.status === 'assigned' || s.status === 'pending').length;
                 const total = segs.length;
                 let newStatus = assignedCount === 0 ? 'available' : assignedCount >= total ? 'exhausted' : 'segmented';
-                runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, binRow.parent_bin]);
+                await runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, binRow.parent_bin]);
             }
         }
 
         // Create request record
-        const result = runQuery(
+        const result = await runQuery(
             `INSERT INTO requests (requester_id, requester_username, country, ica, ica_qmr, digits, brand, product, segment, client, tokenization, keys, embosser, bin_type, balance_type, proposed_bin, proposed_bin_id, status, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
             [req.user.id, req.user.username, country || null, ica || null, ica_qmr || null, dLen,
@@ -209,10 +206,10 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
             bin_type || null, balance_type || null, proposedBin, proposedBinId, notes || null]
         );
 
-        logAudit(req.user.id, req.user.username, 'REQUEST_CREATE', 'requests', result.lastInsertRowid, null, null, proposedBin,
+        await logAudit(req.user.id, req.user.username, 'REQUEST_CREATE', 'requests', result.lastInsertRowid, null, null, proposedBin,
             `Solicitud de BIN ${dLen} dígitos para ${client}`);
 
-        const newRequest = queryOne('SELECT * FROM requests WHERE id = ?', [result.lastInsertRowid]);
+        const newRequest = await queryOne('SELECT * FROM requests WHERE id = ?', [result.lastInsertRowid]);
         res.status(201).json({ ...newRequest, is_first_segmentation: isFirstSegmentation });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -220,38 +217,38 @@ router.post('/', authenticateToken, requireRequester, (req, res) => {
 });
 
 // ========== PUT /api/requests/:id/approve ==========
-router.put('/:id/approve', authenticateToken, requireAdmin, (req, res) => {
+router.put('/:id/approve', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const request = queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
+        const request = await queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
         if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
         if (request.status !== 'pending') return res.status(400).json({ error: 'Esta solicitud ya fue procesada' });
 
         // Approve: mark BIN as assigned
-        runQuery(
+        await runQuery(
             `UPDATE bins SET status = 'assigned', approved_by = ?, assigned_date = datetime('now','localtime'), updated_at = datetime('now','localtime') WHERE id = ?`,
             [req.user.username, request.proposed_bin_id]
         );
 
         // Recalculate parent
-        const bin = queryOne('SELECT parent_bin FROM bins WHERE id = ?', [request.proposed_bin_id]);
+        const bin = await queryOne('SELECT parent_bin FROM bins WHERE id = ?', [request.proposed_bin_id]);
         if (bin && bin.parent_bin) {
-            const segs = queryAll('SELECT status FROM bins WHERE parent_bin = ?', [bin.parent_bin]);
+            const segs = await queryAll('SELECT status FROM bins WHERE parent_bin = ?', [bin.parent_bin]);
             const assignedCount = segs.filter(s => s.status === 'assigned' || s.status === 'pending').length;
             const total = segs.length;
             let newStatus = assignedCount === 0 ? 'available' : assignedCount >= total ? 'exhausted' : 'segmented';
-            runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, bin.parent_bin]);
+            await runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, bin.parent_bin]);
         }
 
         // Update request
-        runQuery(
+        await runQuery(
             `UPDATE requests SET status = 'approved', admin_id = ?, admin_username = ?, admin_action_date = datetime('now','localtime'), updated_at = datetime('now','localtime') WHERE id = ?`,
             [req.user.id, req.user.username, parseInt(req.params.id)]
         );
 
-        logAudit(req.user.id, req.user.username, 'REQUEST_APPROVE', 'requests', request.id, 'status', 'pending', 'approved',
+        await logAudit(req.user.id, req.user.username, 'REQUEST_APPROVE', 'requests', request.id, 'status', 'pending', 'approved',
             `BIN ${request.proposed_bin} aprobado para ${request.client}`);
 
-        const updated = queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
+        const updated = await queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
         res.json(updated);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -259,27 +256,26 @@ router.put('/:id/approve', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // ========== PUT /api/requests/:id/reject ==========
-router.put('/:id/reject', authenticateToken, requireAdmin, (req, res) => {
+router.put('/:id/reject', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const request = queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
+        const request = await queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
         if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
         if (request.status !== 'pending') return res.status(400).json({ error: 'Esta solicitud ya fue procesada' });
 
         // Reject: return BIN to available
-        runQuery(
+        await runQuery(
             `UPDATE bins SET status = 'available', client = NULL, tokenization = NULL, embosser = NULL, balance_type = NULL, requested_by = NULL, updated_at = datetime('now','localtime') WHERE id = ?`,
             [request.proposed_bin_id]
         );
 
-        // Check if parent BIN can be unsegmented (no other segments in use)
+        // Check if parent BIN can be unsegmented
         let can_unsegment = false;
         let parent_bin_id = null;
-        const binRow = queryOne('SELECT * FROM bins WHERE id = ?', [request.proposed_bin_id]);
+        const binRow = await queryOne('SELECT * FROM bins WHERE id = ?', [request.proposed_bin_id]);
         if (binRow && binRow.parent_bin) {
-            const parentBin = queryOne('SELECT * FROM bins WHERE bin_number = ?', [binRow.parent_bin]);
+            const parentBin = await queryOne('SELECT * FROM bins WHERE bin_number = ?', [binRow.parent_bin]);
             if (parentBin) {
-                // Check if all other segments are still available (none assigned/pending)
-                const usedSegs = queryAll(
+                const usedSegs = await queryAll(
                     `SELECT id FROM bins WHERE parent_bin = ? AND id != ? AND (status = 'assigned' OR status = 'pending')`,
                     [binRow.parent_bin, binRow.id]
                 );
@@ -290,23 +286,23 @@ router.put('/:id/reject', authenticateToken, requireAdmin, (req, res) => {
             }
 
             // Recalculate parent status
-            const segs = queryAll('SELECT status FROM bins WHERE parent_bin = ?', [binRow.parent_bin]);
+            const segs = await queryAll('SELECT status FROM bins WHERE parent_bin = ?', [binRow.parent_bin]);
             const assignedCount = segs.filter(s => s.status === 'assigned' || s.status === 'pending').length;
             const total = segs.length;
             let newStatus = assignedCount === 0 ? 'available' : assignedCount >= total ? 'exhausted' : 'segmented';
-            runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, binRow.parent_bin]);
+            await runQuery('UPDATE bins SET status = ?, updated_at = datetime("now", "localtime") WHERE bin_number = ?', [newStatus, binRow.parent_bin]);
         }
 
         // Update request
-        runQuery(
+        await runQuery(
             `UPDATE requests SET status = 'rejected', admin_id = ?, admin_username = ?, admin_action_date = datetime('now','localtime'), updated_at = datetime('now','localtime') WHERE id = ?`,
             [req.user.id, req.user.username, parseInt(req.params.id)]
         );
 
-        logAudit(req.user.id, req.user.username, 'REQUEST_REJECT', 'requests', request.id, 'status', 'pending', 'rejected',
+        await logAudit(req.user.id, req.user.username, 'REQUEST_REJECT', 'requests', request.id, 'status', 'pending', 'rejected',
             `BIN ${request.proposed_bin} rechazado para ${request.client}`);
 
-        const updated = queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
+        const updated = await queryOne('SELECT * FROM requests WHERE id = ?', [parseInt(req.params.id)]);
         res.json({ ...updated, can_unsegment, parent_bin_id });
     } catch (err) {
         res.status(500).json({ error: err.message });

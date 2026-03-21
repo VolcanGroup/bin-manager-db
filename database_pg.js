@@ -161,13 +161,28 @@ async function initDatabase() {
 }
 
 // Helpers adaptados para PostgreSQL
-async function queryAll(sql, params = []) {
-  // Convertimos syntax de SQLite (?) a PostgreSQL ($1, $2...)
+function translateSql(sql) {
   let pgSql = sql;
-  params.forEach((_, i) => {
-    pgSql = pgSql.replace('?', '$' + (i + 1));
-  });
+  
+  // Convertir datetime('now', 'localtime') a CURRENT_TIMESTAMP
+  pgSql = pgSql.replace(/datetime\(['"]now['"]\s*,\s*['"]localtime['"]\)/gi, 'CURRENT_TIMESTAMP');
+  pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, 'CURRENT_TIMESTAMP');
 
+  // La lógica de reemplazo de ? por $1, $2... es más compleja si hay strings con '?'
+  // pero para este proyecto simple donde no hay binds complejos, un replace global secuencial funciona:
+  let parts = pgSql.split('?');
+  if (parts.length > 1) {
+    pgSql = parts[0];
+    for (let i = 1; i < parts.length; i++) {
+        pgSql += '$' + i + parts[i];
+    }
+  }
+  
+  return pgSql;
+}
+
+async function queryAll(sql, params = []) {
+  const pgSql = translateSql(sql);
   const res = await pool.query(pgSql, params);
   return res.rows;
 }
@@ -178,14 +193,14 @@ async function queryOne(sql, params = []) {
 }
 
 async function runQuery(sql, params = []) {
-  let pgSql = sql;
-  params.forEach((_, i) => {
-    pgSql = pgSql.replace('?', '$' + (i + 1));
-  });
+  let pgSql = translateSql(sql);
 
   // Manejar el last_insert_rowid() de SQLite
   if (pgSql.toUpperCase().includes('INSERT INTO')) {
-    pgSql += ' RETURNING id';
+    // Si ya tiene RETURNING, no lo agregamos
+    if (!pgSql.toUpperCase().includes('RETURNING')) {
+      pgSql += ' RETURNING id';
+    }
   }
 
   const res = await pool.query(pgSql, params);

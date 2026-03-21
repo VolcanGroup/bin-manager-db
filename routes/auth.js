@@ -7,7 +7,7 @@ const { JWT_SECRET } = require('../middleware/auth');
 const router = express.Router();
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     let { username, password } = req.body;
 
     if (!username || !password) {
@@ -16,7 +16,7 @@ router.post('/login', (req, res) => {
 
     username = username.trim().toLowerCase();
 
-    const user = queryOne('SELECT * FROM users WHERE username = ?', [username]);
+    const user = await queryOne('SELECT * FROM users WHERE username = ?', [username]);
     if (!user) {
         return res.status(401).json({ error: 'Credenciales inválidas' });
     }
