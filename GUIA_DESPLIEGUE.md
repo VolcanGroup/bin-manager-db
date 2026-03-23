@@ -50,4 +50,25 @@ Como ahora usas PostgreSQL en Supabase, puedes consultar los datos desde cualqui
 He preparado el archivo `database_pg.js` especialmente para esto. La aplicación está lista para detectar si hay una `DATABASE_URL` configurada y usar PostgreSQL automáticamente.
 
 ---
-*Si tienes alguna duda durante el proceso, ¡estoy aquí para ayudarte!*
+
+## 🔄 Flujo de Trabajo en el Futuro (Mantenimiento)
+
+Para que no te pierdas, este es el resumen de qué hacer en cada plataforma:
+
+### 1. GitHub (Tu "Cofre" de Código)
+*   **¿Cuándo usarlo?** Siempre que hagas un cambio en los archivos (HTML, CSS, JS o rutas).
+*   **Acción:** Sube los archivos nuevos usando "Add file" -> "Upload files". 
+*   **Resultado:** GitHub guarda la versión más reciente de tu proyecto.
+
+### 2. Render (Tu "Servidor" en Línea)
+*   **¿Cuándo usarlo?** Después de subir cambios a GitHub o si la página se queda pegada.
+*   **Acción:** Ve a tu Web Service y dale a **"Manual Deploy"** -> **"Deploy latest commit"**.
+*   **Resultado:** Render baja el código nuevo de GitHub y reinicia la página con los cambios.
+
+### 3. Supabase (Tu "Disco Duro" de Datos)
+*   **¿Cuándo usarlo?** Si quieres ver los datos sin entrar a la app, si necesitas borrar un usuario, o si quieres exportar la base de datos a Excel.
+*   **Acción:** Usa el **"Table Editor"**.
+*   **Resultado:** Ves la información real en tiempo real. No necesitas subir nada aquí; la app lo hace sola.
+
+---
+*¡Felicidades por tu nueva infraestructura profesional!* 🚀✨
