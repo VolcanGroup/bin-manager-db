@@ -1,6 +1,7 @@
 // ========== BIN Manager v2 — Frontend App ==========
 const isDev = window.location.hostname.includes('bin-manager-dev') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1');
 if (isDev) document.body.classList.add('is-dev');
+document.title = isDev ? 'Dev Bin Manager' : 'Bin Manager';
 
 let token = null;
 let currentUser = null;
