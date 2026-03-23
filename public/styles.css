@@ -45,6 +45,10 @@
     /* Light blue info */
     --info-soft: rgba(80, 134, 242, 0.15);
 
+    --env-dev: #f6ad55; /* Orange for dev */
+    --env-dev-soft: rgba(246, 173, 85, 0.15);
+
+
     --visa-color: #1a1f71;
     --mastercard-color: #eb001b;
 
@@ -1775,3 +1779,42 @@ tbody tr:last-child td {
 }
 .table-container table { min-width: 800px; width: 100%; }
 .table-scroll { width: 100%; overflow-x: auto; }
+
+/* ========== Environment Indicators ========== */
+.env-badge {
+    display: none;
+    background: var(--env-dev);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+    box-shadow: 0 2px 4px rgba(246, 173, 85, 0.3);
+}
+
+.env-banner {
+    display: none;
+    background: var(--env-dev);
+    color: #011140;
+    text-align: center;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.is-dev .env-badge,
+.is-dev .env-banner {
+    display: block;
+}
+
+.is-dev .sidebar-logo {
+    position: relative;
+}
